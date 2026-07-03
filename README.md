@@ -7,6 +7,7 @@ Source dataset page: https://www.ea.govt.nz/data-and-insights/datasets/Datasets/
 Files tracked:
 - `SolarInstallationsByStreet.csv`
 - `SolarInstallationsByRegion.csv`
+- `SolarInstallationsByStreet.map.csv` alias file for the local Leaflet map fields (`street`, `installation_type`, `installations`, `kw_rating`).
 
 Schedule: weekly GitHub Actions run. The action downloads the current public CSVs, writes `data/current/`, stores dated snapshots under `data/snapshots/YYYY-MM-DD/`, updates `metadata/manifest.jsonl`, and commits only when content changes.
 

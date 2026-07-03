@@ -15,6 +15,7 @@ EXPECTED_COLUMNS = {
 ROOT = Path(__file__).resolve().parents[1]
 CURRENT = ROOT / "data" / "current"
 SNAPSHOTS = ROOT / "data" / "snapshots"
+MAP_COLUMNS = ["street", "sa2_code", "sa2_name", "installation_type", "installations", "kw_rating", "kw_total"]
 META = ROOT / "metadata" / "manifest.jsonl"
 
 
@@ -35,6 +36,29 @@ def fetch(name, url):
     return data, headers, row_count, cols
 
 
+def write_map_compatible_street_csv(source_path: Path, dest_path: Path):
+    """Write aliases used by the local Leaflet map popup code.
+
+    The EA CSV has no latitude/longitude, so this is not a standalone GeoJSON
+    replacement. Join these rows to a geocoded street/SA2 layer or the previous
+    one-off Sigma coordinate capture before rendering point markers.
+    """
+    with source_path.open(newline="", encoding="utf-8-sig") as src, dest_path.open("w", newline="", encoding="utf-8") as dst:
+        reader = csv.DictReader(src)
+        writer = csv.DictWriter(dst, fieldnames=MAP_COLUMNS)
+        writer.writeheader()
+        for row in reader:
+            writer.writerow({
+                "street": row["PhysicalAddressStreet"],
+                "sa2_code": row["StatisticalArea2Code"],
+                "sa2_name": row["StatisticalArea2Name"],
+                "installation_type": row["MarketSegment"],
+                "installations": row["ICPs"],
+                "kw_rating": row["GenerationCapacityKilowattsAvg"],
+                "kw_total": row["GenerationCapacityKilowattsSum"],
+            })
+
+
 def main():
     today = os.environ.get("SNAPSHOT_DATE") or datetime.now(timezone.utc).date().isoformat()
     current_dir = CURRENT
@@ -48,6 +72,9 @@ def main():
         sha = hashlib.sha256(data).hexdigest()
         for dest in (current_dir / name, snapshot_dir / name):
             dest.write_bytes(data)
+        if name == "SolarInstallationsByStreet.csv":
+            for base in (current_dir, snapshot_dir):
+                write_map_compatible_street_csv(base / name, base / "SolarInstallationsByStreet.map.csv")
         records.append({
             "snapshot_date": today,
             "fetched_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
